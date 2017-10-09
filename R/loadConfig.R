@@ -76,22 +76,26 @@ redis_loadConfig <- function(file, ..., append = FALSE) {
     autoLoadEnv <- parent.frame()
 
     config[[i]] <- .readConfigFile(file[i], envir = autoLoadEnv)
-    config_old <- redis_getConfig(attr(config, 'key'))
+    config_old <- redis_getConfig(attr(config[[i]], 'key'))
 
     if (!is.null(config_old)) {
-      if (!identical(attr(config, 'id'), attr(config_old, 'id')))
-        stop('Existing key \'', attr(config, 'key'), '\' with different ID!')
+      if (!identical(attr(config[[i]], 'id'), attr(config_old, 'id'))) {
+        stop(sprintf('Existing key \'%s\' with different ID!',
+                     attr(config[[i]], 'key')))
+      }
 
       if (append) {
-        config_old[names(config)] <- config[[i]]
+        config_old[names(config[[i]])] <- config[[i]]
         config[[i]] <- config_old
       }
     }
 
-    config[[i]][1] <- jsonlite::toJSON(config, auto_unbox = TRUE, na = NULL)
-    attr(config[[i]], 'status') <- rredis::redisSet(attr(config[[i]], 'key'),
-                                                    config[[i]])
-    config[[i]][1] <- jsonlite::fromJSON(config[[i]])
+    value <- jsonlite::toJSON(config[[i]], auto_unbox = TRUE, na = NULL)
+    key <- attr(config[[i]], 'key')
+    status <- rredis::redisSet(key, value)
+
+    config[[i]] <- rredis::redisGet(key)
+    attr(config[[i]], 'status') <- status
   }
 
   if (length(file) == 1) config <- config[[1]]
