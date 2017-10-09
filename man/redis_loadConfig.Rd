@@ -15,6 +15,10 @@ case of no open Redis connection}
 \item{append}{logical, if \code{TRUE} config settings will be appended to
 existing settings (if any). Duplicate settings will be overwritten.}
 }
+\value{
+a list of same length as `file` containing configuration settings;
+    if `file` is of length 1, only the first list element will be returned
+}
 \description{
 The function loads config data, stored as JSON-strings in config files to
 the Redis cache.

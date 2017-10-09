@@ -43,6 +43,9 @@
 #' Relative paths for file names are given with respect to the location of
 #' the config file.
 #'
+#' @return a list of same length as `file` containing configuration settings;
+#'     if `file` is of length 1, only the first list element will be returned
+#'
 #'
 #' @examples
 #' \dontrun{
@@ -66,11 +69,13 @@ redis_loadConfig <- function(file, ..., append = FALSE) {
     on.exit(rredis::redisClose())
   }
 
-  for (f in file) {
+  config <- vector('list', length(file))
+
+  for (i in seq_along(file)) {
 
     autoLoadEnv <- parent.frame()
 
-    config <- .readConfigFile(f, envir = autoLoadEnv)
+    config[[i]] <- .readConfigFile(file[i], envir = autoLoadEnv)
     config_old <- redis_getConfig(attr(config, 'key'))
 
     if (!is.null(config_old)) {
@@ -78,14 +83,20 @@ redis_loadConfig <- function(file, ..., append = FALSE) {
         stop('Existing key \'', attr(config, 'key'), '\' with different ID!')
 
       if (append) {
-        config_old[names(config)] <- config
-        config <- config_old
+        config_old[names(config)] <- config[[i]]
+        config[[i]] <- config_old
       }
     }
 
-    value <- jsonlite::toJSON(config, auto_unbox = TRUE, na = NULL)
-    invisible(rredis::redisSet(attr(config, 'key'), value))
+    config[[i]][1] <- jsonlite::toJSON(config, auto_unbox = TRUE, na = NULL)
+    attr(config[[i]], 'status') <- rredis::redisSet(attr(config[[i]], 'key'),
+                                                    config[[i]])
+    config[[i]][1] <- jsonlite::fromJSON(config[[i]])
   }
+
+  if (length(file) == 1) config <- config[[1]]
+
+  invisible(config)
 
 }
 
