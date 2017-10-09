@@ -94,7 +94,7 @@ redis_loadConfig <- function(file, ..., append = FALSE) {
     key <- attr(config[[i]], 'key')
     status <- rredis::redisSet(key, value)
 
-    config[[i]] <- rredis::redisGet(key)
+    config[[i]] <- redis_getConfig(key)
     attr(config[[i]], 'status') <- status
   }
 
