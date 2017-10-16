@@ -1,0 +1,22 @@
+{
+  "Metadata": {
+    "ApplicationId": "00000000-0000-0000-0000-000000000000",
+    "ApplicationInstanceId": "00000000-0000-0000-0000-000000000000"
+  },
+  "LoggingDocument": {
+    "Message": "",
+    "Detail": "",
+    "LoggingLevel": 200,
+    "Archive": false,
+    "ShowUser": false,
+    "DocumentId": "00000000-0000-0000-0000-000000000000",
+    "Source": null,
+    "FileName": null,
+    "LineNumber": 0,
+    "EntryTimestampUtc": "0001-01-01T00:00:00",
+    "CorrelationId": "00000000-0000-0000-0000-000000000000",
+    "OperationId": "00000000-0000-0000-0000-000000000000",
+    "CallerMemberName": "",
+    "AdvancedDataItems": ""
+  }
+}

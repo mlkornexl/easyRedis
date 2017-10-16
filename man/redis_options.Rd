@@ -4,11 +4,13 @@
 \alias{redis_options}
 \title{Package Options}
 \usage{
-redis_options(...)
+redis_options(..., ifnotfound = NULL)
 }
 \arguments{
 \item{...}{either a list of character strings (names of options to get) or
 a named list of options to set}
+
+\item{ifnotfound}{default return value if option is not set}
 }
 \value{
 For \code{...} being an unnamed list of character strings, the
