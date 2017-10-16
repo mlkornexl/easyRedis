@@ -4,6 +4,7 @@
 #'
 #' @param ... either a list of character strings (names of options to get) or
 #'     a named list of options to set
+#' @param ifnotfound default return value if option is not set
 #'
 #' @return For \code{...} being an unnamed list of character strings, the
 #'     function returns a list of options. If the resulting list is of length
@@ -15,7 +16,7 @@
 #'     invisibly returns the original values (if set) of the set options.
 #'
 #' @export
-redis_options <- function(...) {
+redis_options <- function(..., ifnotfound = NULL) {
   opts <- list(...)
 
   if (length(opts) == 0) {
@@ -23,7 +24,7 @@ redis_options <- function(...) {
 
   } else if (is.null(names(opts))) {
     opts <- opts[vapply(opts, is.character, FUN.VALUE = logical(1))]
-    opts <- sapply(opts, get0, envir = .options,
+    opts <- sapply(opts, get0, envir = .options, ifnotfound = ifnotfound,
                    simplify = FALSE, USE.NAMES = TRUE)
     if (length(opts) == 1) opts <- opts[[1]]
 
