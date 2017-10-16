@@ -7,10 +7,22 @@
 \alias{easyRedis-package}
 \title{easyRedis: Helper Package for Redis Caches}
 \description{
-easyRedis: Helper Package for Redis Caches
+The package provides various function for working with Redis data bases
 }
 \section{Functions}{
 
-Some functions
+\describe{
+   \item{\code{\link{redis_options}}}{get or set options for \pkg{easyRedis}
+       package}
+   \item{\code{\link{redis_connect}}, \code{\link{redis_close}}}{connect to
+       Redis data base or close the connection}
+   \item{\code{\link{redis_loadConfig}}}{loads configuration files to
+       Redis data base}
+   \item{\code{\link{redis_getConfig}}}{get configuration settings from
+       Redis data base}
+   \item{\code{\link{redis_logger}}}{define a logger to publish messages to
+       a Redis data base}
+
+}
 }
 
