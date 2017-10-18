@@ -65,10 +65,17 @@ the config file.
 \dontrun{
 ## show template for minimal configuration file
 file <- system.file('templates/minimal.cfg', package = 'easyRedis')
-cat(file)
+cat(stringr::str_c(readLines(file), collapse = '\\n'))
 
 ## *** SET UP AN OPEN REDIS-CONNECTION FIRST! ***
-redis_loadConfig(file)
+config <- redis_loadConfig(file)
+
+key <- attr(config, 'key')
+
+redis_getConfig(key)
+
+## *** CLEAR REDIS KEY! ***
+rredis::redisDelete(key)
 }
 
 }
