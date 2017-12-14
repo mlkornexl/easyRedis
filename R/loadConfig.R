@@ -30,18 +30,26 @@
 #' @section Auto Load:
 #' The \code{auto_load} section of the configuration file contains a named
 #' list of code to create configuration settings dynamically. Code can be
-#' any valid expression e.g. \preformatted{"date": "Sys.Date()"}
-#' or, using \code{::} to locate a function within a package,
-#' \preformatted{"date": "lubridate::today()"}
+#' any valid expression e.g.
+#' \preformatted{"date": "Sys.Date()"}
 #' to set config value \code{date} to the current date (using
-#' \code{\link[base]{Sys.Date}()}).
+#' \code{\link[base]{Sys.Date}()}). Use \code{"::"} to preface the function
+#' with the package name (just like in plain R) or with a file name (anything
+#' that ends with \code{".R"} or \code{".r"}) of an R-script that defines
+#' the expression.
 #'
-#' Code can also be a file name with an optional expression (separated by a
-#' colon) to be evaluated within the context of this file. If no expression
-#' is given, variable \code{value} as defined within the file, will be returned.
+#' If file name is provided without any expression, variable \code{value} as
+#' defined by the script will be returned.
 #'
-#' Relative paths for file names are given with respect to the location of
-#' the config file.
+#' All expressions (and the sourcing of the R-script, in case a file name is
+#' provided) will be evaluated in an separate environment with parent
+#' environment the calling environment of \code{redis_loadConfig()}. The
+#' environment itself is empty except for the variable \code{config} that
+#' contains the config data, defined so far, i.e. one can use static config
+#' data as well as config data defined by previous autoloads..
+#'
+#' For a file name given with relative paths, these are with respect to the
+#' the config file's location.
 #'
 #' @return a list of same length as `file` containing configuration settings;
 #'     if `file` is of length 1, only the first list element will be returned
@@ -78,9 +86,9 @@ redis_loadConfig <- function(file, ..., append = FALSE) {
 
   config <- vector('list', length(file))
 
-  for (i in seq_along(file)) {
+  autoLoadEnv <- new.env(parent = parent.frame())
 
-    autoLoadEnv <- parent.frame()
+  for (i in seq_along(file)) {
 
     config[[i]] <- .readConfigFile(file[i], envir = autoLoadEnv)
     config_old <- redis_getConfig(attr(config[[i]], 'key'))
@@ -133,11 +141,13 @@ redis_loadConfig <- function(file, ..., append = FALSE) {
   if (is.null(id))
     stop('Missing id in config file \'', file, '\'.')
 
-  if (length(autoLoad) > 0) {
-    autoLoad <- sapply(autoLoad, .autoLoadConfig, envir = envir,
-                       path = dirname(file),
-                       simplify = FALSE, USE.NAMES = TRUE)
-    config[names(autoLoad)] <- autoLoad
+  autoLoad <- autoLoad[names(autoLoad) != '']
+  for (i in seq_along(autoLoad)) {
+    rm(list = ls(all.names = TRUE, envir = envir), envir = envir)
+    assign('config', config, envir = envir)
+
+    config[[names(autoLoad)[i]]] <- .autoLoadConfig(autoLoad[[i]], envir,
+                                                    dirname(file))
   }
 
   attr(config, 'id') <- id
@@ -150,14 +160,14 @@ redis_loadConfig <- function(file, ..., append = FALSE) {
 
 .autoLoadConfig <- function(autoLoad, envir, path) {
   # if autoLoad is a file, an no expression is provided, add "value"
-  autoLoad <- stringr::str_replace(autoLoad, '(?i)(?<=\\.R)$', ':value')
+  autoLoad <- stringr::str_replace(autoLoad, '(?i)(?<=\\.R)$', '::value')
 
   autoLoadEnv <- new.env(parent = envir)
 
-  if (stringr::str_detect(autoLoad, '(?i).+?\\.R:[^:]')) {
+  if (stringr::str_detect(autoLoad, '(?i).+?\\.R::[^:]')) {
     # autoLoad is of type <R-file>:<expression>
-    file <- stringr::str_extract(autoLoad, '(?i).+?\\.R(?=:)')
-    expr <- stringr::str_extract(autoLoad, '(?i)(?<=\\.R:).+$')
+    file <- stringr::str_extract(autoLoad, '(?i).+?\\.R(?=::)')
+    expr <- stringr::str_extract(autoLoad, '(?i)(?<=\\.R::).+$')
 
     if (!(stringr::str_detect(file, '^.:(/|\\\\)') ||
           stringr::str_detect(file, '^[/\\\\]') ||

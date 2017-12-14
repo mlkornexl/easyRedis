@@ -47,18 +47,26 @@ For loading a minimal config file, see Examples.
 
 The \code{auto_load} section of the configuration file contains a named
 list of code to create configuration settings dynamically. Code can be
-any valid expression e.g. \preformatted{"date": "Sys.Date()"}
-or, using \code{::} to locate a function within a package,
-\preformatted{"date": "lubridate::today()"}
+any valid expression e.g.
+\preformatted{"date": "Sys.Date()"}
 to set config value \code{date} to the current date (using
-\code{\link[base]{Sys.Date}()}).
+\code{\link[base]{Sys.Date}()}). Use \code{"::"} to preface the function
+with the package name (just like in plain R) or with a file name (anything
+that ends with \code{".R"} or \code{".r"}) of an R-script that defines
+the expression.
 
-Code can also be a file name with an optional expression (separated by a
-colon) to be evaluated within the context of this file. If no expression
-is given, variable \code{value} as defined within the file, will be returned.
+If file name is provided without any expression, variable \code{value} as
+defined by the script will be returned.
 
-Relative paths for file names are given with respect to the location of
-the config file.
+All expressions (and the sourcing of the R-script, in case a file name is
+provided) will be evaluated in an separate environment with parent
+environment the calling environment of \code{redis_loadConfig()}. The
+environment itself is empty except for the variable \code{config} that
+contains the config data, defined so far, i.e. one can use static config
+data as well as config data defined by previous autoloads..
+
+For a file name given with relative paths, these are with respect to the
+the config file's location.
 }
 
 \examples{
