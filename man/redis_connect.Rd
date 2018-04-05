@@ -27,6 +27,11 @@ settings of the connection string \code{conn}.}
 \item{...}{other parameter passed to \code{\link[rredis]{redisConnect}} or
 \code{\link[rredis]{redisClose}}}
 }
+\value{
+logical value, \code{TRUE} if connection has been opened,
+    \code{FALSE} if a connection has already been opened (note that this has
+    not necessarily need to be the one specified by \code{conn})
+}
 \description{
 The function is a wrapper for \code{\link[rredis]{redisConnect}} function
 that allows to pass host name, port, and authorization as a connection

@@ -4,13 +4,10 @@
 \alias{redis_getConfig}
 \title{Get Configuration Data from Redis Cache}
 \usage{
-redis_getConfig(key, ...)
+redis_getConfig(key)
 }
 \arguments{
 \item{key}{character string, key to identify config data in Redis cache}
-
-\item{...}{additional paramter passed to \code{\link{redis_connect}} in
-case of no open Redis connection}
 }
 \value{
 an object deparsed from JSON string that is stored in Redis cache
