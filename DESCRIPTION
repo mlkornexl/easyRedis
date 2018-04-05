@@ -1,7 +1,7 @@
 Package: easyRedis
 Type: Package
 Title: Read/Write Config Data to Redis Cache
-Version: 0.9.0
+Version: 0.9.7
 Author: Matthias Kornexl
 Maintainer: Matthias Kornexl <mk@iib.at>
 Description: The package provides functions to load config data to Redis cache
@@ -14,5 +14,7 @@ Imports: jsonlite,
     stringr,
     magrittr,
     futile.logger,
-    lubridate
+    lubridate,
+    uuid,
+    purrr
 RoxygenNote: 6.0.1

@@ -29,6 +29,10 @@
 #'     As password may contain any string, it \emph{must} be the last part of
 #'     the connection string.
 #'
+#' @return logical value, \code{TRUE} if connection has been opened,
+#'     \code{FALSE} if a connection has already been opened (note that this has
+#'     not necessarily need to be the one specified by \code{conn})
+#'
 #' @seealso \code{\link[rredis]{redisConnect}} for basis function to connect
 #'     to a Redis Server
 #'
@@ -40,22 +44,29 @@ redis_connect <- function(conn = redis_options('connection'),
     stop('Connection string for Redis cache must be set!')
   }
 
-  conn <- list(
-    host = stringr::str_extract(conn, '(?<=host=).*?(?=;)'),
-    port = as.integer(stringr::str_extract(conn, '(?<=port=)\\d*?(?=;)')),
-    password = stringr::str_extract(conn, '(?<=password=).*$')
-  )
+  if (.redis_isOpen()) invisible(FALSE)
 
-  if (is.na(conn$port) & !is.na(conn$host)) {
-    conn$port <- stringr::str_extract(conn, '(?<=:)[[:digit:]]+$')
+  if (missing(host))
+    host <- stringr::str_extract(conn, '(?i)(?<=host=).*?(?=;)')
+  if (missing(port))
+    port <- as.integer(stringr::str_extract(conn, '(?i)(?<=port=)\\d*?(?=;)'))
+  if (missing(password))
+    password <- stringr::str_extract(conn, '(?i)(?<=password=).*$')
+  if (is.na(port) & !is.na(host)) {
+    port <- stringr::str_extract(host, '(?<=:)[[:digit:]]+$')
   }
 
-  conn <- conn[!vapply(conn, is.na, FUN.VALUE = logical(1))]
+  conn <- list(host = host, port = port, password = password)
+  purrr::invoke(rredis::redisConnect, conn[!purrr::map_lgl(conn, is.na)])
 
-  invisible(do.call(rredis::redisConnect, conn))
+  invisible(TRUE)
 }
 
 #' @rdname redis_connect
 #' @export
 #'
 redis_close <- function(...) rredis::redisClose(...)
+
+.redis_isOpen <- function() {
+  !identical(class(try(rredis::redisInfo(), silent = TRUE)), 'try-error')
+}

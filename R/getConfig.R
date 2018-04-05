@@ -1,8 +1,6 @@
 #' Get Configuration Data from Redis Cache
 #'
 #' @param key character string, key to identify config data in Redis cache
-#' @param ... additional paramter passed to \code{\link{redis_connect}} in
-#'     case of no open Redis connection
 #'
 #' @return an object deparsed from JSON string that is stored in Redis cache
 #'     with key \code{key}.
@@ -17,20 +15,16 @@
 #'
 #' @export
 #'
-redis_getConfig <- function(key, ...) {
-  if (identical(class(try(rredis::redisInfo(), silent = TRUE)),
-                'try-error')) {
-    redis_connect(...)
-    on.exit(rredis::redisClose())
-  }
+redis_getConfig <- function(key) {
+  if (!redis_connect()) on.exit(rredis::redisClose())
 
   if (!rredis::redisExists(key)) return(NULL)
 
-  value <- rredis::redisGet(key) %>%
+  config <- rredis::redisGet(key) %>%
     jsonlite::fromJSON()
 
-  attr(value, 'id') <- value$id
-  attr(value, 'key') <- key
+  attr(config, 'id') <- config$id
+  attr(config, 'key') <- key
 
-  return(value)
+  return(config)
 }

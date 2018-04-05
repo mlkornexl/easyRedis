@@ -1,6 +1,6 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^\.git$
-^\.gitignore$
+.gitignore
 ^README\.md$
 \.setup/.*

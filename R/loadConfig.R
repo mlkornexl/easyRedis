@@ -3,57 +3,12 @@
 #' The function loads config data, stored as JSON-strings in config files to
 #' the Redis cache.
 #'
-#' @param file character vector of file names
-#' @param ... additional paramter passed to \code{\link{redis_connect}} in
-#'     case of no open Redis connection
+#' @param file character vector of file names (a single file name for
+#'     \code{redis_readConfigFile})
 #' @param append logical, if \code{TRUE} config settings will be appended to
 #'     existing settings (if any). Duplicate settings will be overwritten.
 #'
-#' @section Data Format:
-#' All config files must contain data in JSON format. Basic elements of the
-#' data structure at top level are
-#' \describe{
-#'     \item{\code{key}}{\emph{mandatory}, unique key to store and access data
-#'         in the Redis cache}
-#'     \item{\code{value}}{\emph{mandatory}, data object containing a list of
-#'         key-value pairs. This can be any list of named data. There is one
-#'         \emph{mandatory} element: \code{id}. This is a unique identifier of
-#'         the data. It will be matched to \code{key} and no key must be
-#'         assigned to one or more \code{id}s (e.g. from multiple
-#'         config-files)}
-#'     \item{\code{auto_load}}{\emph{optional}, an auto load obejct, i.e. a
-#'         list of key-value pairs, see Auto Load section for details.}
-#' }
-#'
-#' For loading a minimal config file, see Examples.
-#'
-#' @section Auto Load:
-#' The \code{auto_load} section of the configuration file contains a named
-#' list of code to create configuration settings dynamically. Code can be
-#' any valid expression e.g.
-#' \preformatted{"date": "Sys.Date()"}
-#' to set config value \code{date} to the current date (using
-#' \code{\link[base]{Sys.Date}()}). Use \code{"::"} to preface the function
-#' with the package name (just like in plain R) or with a file name (anything
-#' that ends with \code{".R"} or \code{".r"}) of an R-script that defines
-#' the expression.
-#'
-#' If file name is provided without any expression, variable \code{value} as
-#' defined by the script will be returned.
-#'
-#' All expressions (and the sourcing of the R-script, in case a file name is
-#' provided) will be evaluated in an separate environment with parent
-#' environment the calling environment of \code{redis_loadConfig()}. The
-#' environment itself is empty except for the variable \code{config} that
-#' contains the config data, defined so far, i.e. one can use static config
-#' data as well as config data defined by previous autoloads..
-#'
-#' For a file name given with relative paths, these are with respect to the
-#' the config file's location.
-#'
-#' @return a list of same length as `file` containing configuration settings;
-#'     if `file` is of length 1, only the first list element will be returned
-#'
+#' @return a list of configuration settings
 #'
 #' @examples
 #' \dontrun{
@@ -77,41 +32,21 @@
 #'
 #' @export
 #'
-redis_loadConfig <- function(file, ..., append = FALSE) {
+redis_loadConfig <- function(file, append = FALSE) {
   if (identical(class(try(rredis::redisInfo(), silent = TRUE)),
                 'try-error')) {
-    redis_connect(...)
+    redis_connect()
     on.exit(rredis::redisClose())
   }
 
-  config <- vector('list', length(file))
+  config <- purrr::map(file, redis_readConfigFile) %>%
+    purrr::map(function(cfg, append) {
+      key <- attr(cfg, 'key')
 
-  autoLoadEnv <- new.env(parent = parent.frame())
+      if (!append && rredis::redisExists(key)) rredis::redisDelete(key)
 
-  for (i in seq_along(file)) {
-
-    config[[i]] <- .readConfigFile(file[i], envir = autoLoadEnv)
-    config_old <- redis_getConfig(attr(config[[i]], 'key'))
-
-    if (!is.null(config_old)) {
-      if (!identical(attr(config[[i]], 'id'), attr(config_old, 'id'))) {
-        stop(sprintf('Existing key \'%s\' with different ID!',
-                     attr(config[[i]], 'key')))
-      }
-
-      if (append) {
-        config_old[names(config[[i]])] <- config[[i]]
-        config[[i]] <- config_old
-      }
-    }
-
-    value <- jsonlite::toJSON(config[[i]], auto_unbox = TRUE, na = NULL)
-    key <- attr(config[[i]], 'key')
-    status <- rredis::redisSet(key, value)
-
-    config[[i]] <- redis_getConfig(key)
-    attr(config[[i]], 'status') <- status
-  }
+      redis_setConfig(key, .list = cfg)
+    }, append = FALSE)
 
   if (length(file) == 1) config <- config[[1]]
 
@@ -121,66 +56,111 @@ redis_loadConfig <- function(file, ..., append = FALSE) {
 
 
 
-
-
-.readConfigFile <- function(file, envir) {
-  config <- jsonlite::fromJSON(file)
-
-  key <- config$key
-  id <- config$value$id
-  autoLoad <- config$auto_load
-
-  config <- config$value
-
-  if (is.null(key))
-    stop('Missing key in config file \'', file, '\'.')
-
-  if (is.null(config))
-    stop('Missing value section in config file \'', file, '\'.')
-
-  if (is.null(id))
-    stop('Missing id in config file \'', file, '\'.')
-
-  autoLoad <- autoLoad[names(autoLoad) != '']
-  for (i in seq_along(autoLoad)) {
-    rm(list = ls(all.names = TRUE, envir = envir), envir = envir)
-    assign('config', config, envir = envir)
-
-    config[[names(autoLoad)[i]]] <- .autoLoadConfig(autoLoad[[i]], envir,
-                                                    dirname(file))
+#' @rdname redis_loadConfig
+#' @section Data Format:
+#' All config files must contain data in JSON format. Basic elements of the
+#' data structure at top level are
+#' \describe{
+#'     \item{\code{key}}{\emph{mandatory}, unique key to store and access data
+#'         in the Redis cache}
+#'     \item{\code{value}}{\emph{mandatory}, data object containing a list of
+#'         key-value pairs. This can be any list of named data. There is one
+#'         \emph{mandatory} element: \code{id}. This is a unique identifier of
+#'         the data. It will be matched to \code{key} and no key must be
+#'         assigned to one or more \code{id}s (e.g. from multiple
+#'         config-files)}
+#'     \item{\code{auto_load}}{\emph{optional}, an auto load obejct, i.e. a
+#'         list of key-value pairs, see Auto Load section for details.}
+#' }
+#'
+#' For loading a minimal config file, see Examples.
+#'
+redis_readConfigFile <- function(file) {
+  if (!file.exists(file)) {
+    stop('File "', file, '" does not exist.')
   }
 
-  attr(config, 'id') <- id
-  attr(config, 'key') <- key
+  config <- jsonlite::fromJSON(file)
 
-  return(config)
+  if (is.null(config$key))
+    stop('Missing key in config file \'', file, '\'.')
+
+  if (is.null(config$value))
+    stop('Missing value section in config file \'', file, '\'.')
+
+  if (is.null(config$value$id))
+    config$value$id <- uuid::UUIDgenerate()
+
+  env <- list2env(config$value, parent = .GlobalEnv)
+
+  wd_old <- setwd(dirname(normalizePath(file)))
+  on.exit(setwd(wd_old))
+
+  config$auto_load <- purrr::map(config$auto_load, .auto_load, parent = env)
+
+  config$value <- c(config$value[setdiff(names(config$value),
+                                         names(config$auto_load))],
+                    config$auto_load)
+
+  attributes(config$value) <- list(id = config$value$id,
+                                   key = config$key)
+
+  return(config$value)
 }
 
 
+#' @rdname redis_loadConfig
+#' @param expr character string, expression to evaluate, see Auto-Load section
+#'     for details
+#' @param parent environment, parent environment for the environment in which
+#'     \code{expr} will be evaluated
+#'
+#' @section Auto-Load:
+#' The \code{auto_load} section of the config settings contains a named list
+#' of R expressions, e.g.
+#' \preformatted{"auto_load": {
+#'     "date": "Sys.Date()"
+#' }}
+#' will set the config value \code{date} to the current date (using
+#' \code{\link[base]{Sys.Date}()}). Use \code{"::"} to preface the function
+#' with the package name (just like in plain R). A single colon \code{:} can
+#' be used to preface the expression with a file name (i.e. anything
+#' that ends with \code{".R"} or \code{".r"}), that will be sourced
+#' before the expression will be evaluated.
+#'
+#' If file name is provided without any expression, variable \code{value} as
+#' defined by the script will be returned.
+#'
+#' All expressions (and the sourcing of the R-script, in case a file name is
+#' provided) will be evaluated in an separate environment with parent
+#' environment \code{parent}.
+#'
+#' Function \code{redis_readConfigFile}, that calls \code{.auto_load} will set
+#' \code{parent} to a new environment containing all non-auto-load config
+#' settings. The parent environment of this is set to
+#' \code{\link[base]{.GlobalEnv}}. Thus all config settings and any object
+#' within the global search path will be available for execution of
+#' \code{expr}.
+#'
+#' Function \code{redis_readConfigFile} further sets the working directory
+#' temporarily to the config file's base directory, i.e. all relative paths
+#' in a file name will be with respect to this directory.
+#'
+.auto_load <- function(expr, parent) {
 
-.autoLoadConfig <- function(autoLoad, envir, path) {
-  # if autoLoad is a file, an no expression is provided, add "value"
-  autoLoad <- stringr::str_replace(autoLoad, '(?i)(?<=\\.R)$', '::value')
+  e <- new.env(parent = parent)
 
-  autoLoadEnv <- new.env(parent = envir)
+  file <- stringr::str_extract(expr, '(?i).+?\\.R(?=(:|$))')
 
-  if (stringr::str_detect(autoLoad, '(?i).+?\\.R::[^:]')) {
-    # autoLoad is of type <R-file>:<expression>
-    file <- stringr::str_extract(autoLoad, '(?i).+?\\.R(?=::)')
-    expr <- stringr::str_extract(autoLoad, '(?i)(?<=\\.R::).+$')
+  if (is.na(file)) {
+    expr <- stringr::str_extract(expr, '(?i)(?<=\\.R:).+')
+    if (is.na(expr)) expr <- 'value'
 
-    if (!(stringr::str_detect(file, '^.:(/|\\\\)') ||
-          stringr::str_detect(file, '^[/\\\\]') ||
-          stringr::str_detect(file, '^~'))) {
-      file <- file.path(path, file)
-    }
-
-    source(file, local = autoLoadEnv)
-  } else {
-    expr <- autoLoad
+    source(file, local = e)
   }
 
-  eval(parse(text = expr), envir = autoLoadEnv)
+  eval(parse(text = expr), envir = e)
+
 }
 
 

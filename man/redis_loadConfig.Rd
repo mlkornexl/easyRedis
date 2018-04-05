@@ -2,22 +2,31 @@
 % Please edit documentation in R/loadConfig.R
 \name{redis_loadConfig}
 \alias{redis_loadConfig}
+\alias{redis_readConfigFile}
+\alias{.auto_load}
 \title{Load Config-Files to Redis Cache}
 \usage{
-redis_loadConfig(file, ..., append = FALSE)
+redis_loadConfig(file, append = FALSE)
+
+redis_readConfigFile(file)
+
+.auto_load(expr, parent)
 }
 \arguments{
-\item{file}{character vector of file names}
-
-\item{...}{additional paramter passed to \code{\link{redis_connect}} in
-case of no open Redis connection}
+\item{file}{character vector of file names (a single file name for
+\code{redis_readConfigFile})}
 
 \item{append}{logical, if \code{TRUE} config settings will be appended to
 existing settings (if any). Duplicate settings will be overwritten.}
+
+\item{expr}{character string, expression to evaluate, see Auto-Load section
+for details}
+
+\item{parent}{environment, parent environment for the environment in which
+\code{expr} will be evaluated}
 }
 \value{
-a list of same length as `file` containing configuration settings;
-    if `file` is of length 1, only the first list element will be returned
+a list of configuration settings
 }
 \description{
 The function loads config data, stored as JSON-strings in config files to
@@ -43,30 +52,37 @@ data structure at top level are
 For loading a minimal config file, see Examples.
 }
 
-\section{Auto Load}{
+\section{Auto-Load}{
 
-The \code{auto_load} section of the configuration file contains a named
-list of code to create configuration settings dynamically. Code can be
-any valid expression e.g.
-\preformatted{"date": "Sys.Date()"}
-to set config value \code{date} to the current date (using
+The \code{auto_load} section of the config settings contains a named list
+of R expressions, e.g.
+\preformatted{"auto_load": {
+    "date": "Sys.Date()"
+}}
+will set the config value \code{date} to the current date (using
 \code{\link[base]{Sys.Date}()}). Use \code{"::"} to preface the function
-with the package name (just like in plain R) or with a file name (anything
-that ends with \code{".R"} or \code{".r"}) of an R-script that defines
-the expression.
+with the package name (just like in plain R). A single colon \code{:} can
+be used to preface the expression with a file name (i.e. anything
+that ends with \code{".R"} or \code{".r"}), that will be sourced
+before the expression will be evaluated.
 
 If file name is provided without any expression, variable \code{value} as
 defined by the script will be returned.
 
 All expressions (and the sourcing of the R-script, in case a file name is
 provided) will be evaluated in an separate environment with parent
-environment the calling environment of \code{redis_loadConfig()}. The
-environment itself is empty except for the variable \code{config} that
-contains the config data, defined so far, i.e. one can use static config
-data as well as config data defined by previous autoloads..
+environment \code{parent}.
 
-For a file name given with relative paths, these are with respect to the
-the config file's location.
+Function \code{redis_readConfigFile}, that calls \code{.auto_load} will set
+\code{parent} to a new environment containing all non-auto-load config
+settings. The parent environment of this is set to
+\code{\link[base]{.GlobalEnv}}. Thus all config settings and any object
+within the global search path will be available for execution of
+\code{expr}.
+
+Function \code{redis_readConfigFile} further sets the working directory
+temporarily to the config file's base directory, i.e. all relative paths
+in a file name will be with respect to this directory.
 }
 
 \examples{
