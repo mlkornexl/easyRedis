@@ -32,11 +32,11 @@ redis_setConfig <- function(key, ..., .list) {
     .list <- .list[names(.list) != '']
   }
 
-  if (!redis_connect()) on.exit(rredis::redisClose())
+  if (redis_connect()) on.exit(rredis::redisClose())
 
   if (length(.list) == 0)  invisible(redis_getConfig(key))
 
-  .list$id <- .checkId(key, list$id)
+  .list$id <- .checkId(key, .list$id)
   if (is.null(.list$id)) stop('ID mismatch for key "', key, '".')
 
   config <- redis_getConfig(key)
@@ -53,7 +53,7 @@ redis_setConfig <- function(key, ..., .list) {
 }
 
 .checkId <- function(key, id) {
-  if (!redis_connect()) on.exit(rredis::redisClose())
+  if (redis_connect()) on.exit(rredis::redisClose())
 
   if (!rredis::redisExists(key)) {
     if (is.null(id)) id <- uuid::UUIDgenerate()

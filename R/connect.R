@@ -44,7 +44,7 @@ redis_connect <- function(conn = redis_options('connection'),
     stop('Connection string for Redis cache must be set!')
   }
 
-  if (.redis_isOpen()) invisible(FALSE)
+  if (.redis_isOpen()) return(invisible(FALSE))
 
   if (missing(host))
     host <- stringr::str_extract(conn, '(?i)(?<=host=).*?(?=;)')

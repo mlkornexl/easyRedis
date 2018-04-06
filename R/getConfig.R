@@ -16,7 +16,7 @@
 #' @export
 #'
 redis_getConfig <- function(key) {
-  if (!redis_connect()) on.exit(rredis::redisClose())
+  if (redis_connect()) on.exit(rredis::redisClose())
 
   if (!rredis::redisExists(key)) return(NULL)
 

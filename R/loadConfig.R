@@ -33,11 +33,7 @@
 #' @export
 #'
 redis_loadConfig <- function(file, append = FALSE) {
-  if (identical(class(try(rredis::redisInfo(), silent = TRUE)),
-                'try-error')) {
-    redis_connect()
-    on.exit(rredis::redisClose())
-  }
+  if (redis_connect()) on.exit(rredis::redisClose())
 
   config <- purrr::map(file, redis_readConfigFile) %>%
     purrr::map(function(cfg, append) {
@@ -75,6 +71,7 @@ redis_loadConfig <- function(file, append = FALSE) {
 #'
 #' For loading a minimal config file, see Examples.
 #'
+#' @export
 redis_readConfigFile <- function(file) {
   if (!file.exists(file)) {
     stop('File "', file, '" does not exist.')
@@ -103,7 +100,8 @@ redis_readConfigFile <- function(file) {
                     config$auto_load)
 
   attributes(config$value) <- list(id = config$value$id,
-                                   key = config$key)
+                                   key = config$key,
+                                   names = names(config$value))
 
   return(config$value)
 }
@@ -152,7 +150,7 @@ redis_readConfigFile <- function(file) {
 
   file <- stringr::str_extract(expr, '(?i).+?\\.R(?=(:|$))')
 
-  if (is.na(file)) {
+  if (!is.na(file)) {
     expr <- stringr::str_extract(expr, '(?i)(?<=\\.R:).+')
     if (is.na(expr)) expr <- 'value'
 
