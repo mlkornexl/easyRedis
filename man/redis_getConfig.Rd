@@ -4,10 +4,13 @@
 \alias{redis_getConfig}
 \title{Get Configuration Data from Redis Cache}
 \usage{
-redis_getConfig(key)
+redis_getConfig(key, auto_load)
 }
 \arguments{
 \item{key}{character string, key to identify config data in Redis cache}
+
+\item{auto_load}{character string, file path of config file to be loaded
+automatically, if cached config is \code{NULL}.}
 }
 \value{
 an object deparsed from JSON string that is stored in Redis cache
