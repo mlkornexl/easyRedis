@@ -151,10 +151,13 @@ redis_readConfigFile <- function(file) {
   file <- stringr::str_extract(expr, '(?i).+?\\.R(?=(:|$))')
 
   if (!is.na(file)) {
+    wd_old <- setwd(dirname(file))
+    on.exit(setwd(wd_old))
+
     expr <- stringr::str_extract(expr, '(?i)(?<=\\.R:).+')
     if (is.na(expr)) expr <- 'value'
 
-    source(file, local = e)
+    source(basename(file), local = e)
   }
 
   eval(parse(text = expr), envir = e)
